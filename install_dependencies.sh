@@ -11,7 +11,7 @@ sudo apt-get install -y git
 # Клонирование репозитория
 echo "Клонирование репозитория..."
 if [ ! -d "imageboard" ]; then
-    git clone https://github.com/your-username/imageboard.git
+    git clone https://github.com/sameanonim/imageboard.git
     cd imageboard
 else
     cd imageboard
