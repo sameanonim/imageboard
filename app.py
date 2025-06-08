@@ -1,4 +1,4 @@
-from flask import Flask, g, request
+from flask import Flask, request, render_template, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -7,7 +7,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from config import Config
-from models import db, User
+from models import User
 from filters import init_app as init_filters
 from celery_config import make_celery
 from utils.socket import init_socketio
@@ -50,8 +50,15 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
-    babel.init_app(app)
+    
+    @app.before_request
+    def before_request():
+        if request.args.get('lang'):
+            session['lang'] = request.args.get('lang')
+    
+    babel.init_app(app, locale_selector=lambda: session.get('lang', 'ru'))
     limiter.init_app(app)
+    limiter.storage_uri = app.config['REDIS_URL']
     cache.init_app(app)
     
     # Инициализация Celery
@@ -101,18 +108,12 @@ def create_app(config_class=Config):
     
     return app
 
-@babel.localeselector
-def get_locale():
-    """Определение языка интерфейса."""
-    if request.args.get('lang'):
-        session['lang'] = request.args.get('lang')
-    return session.get('lang', 'ru')
-
 @login_manager.user_loader
 def load_user(id):
     """Загрузка пользователя для Flask-Login."""
     return User.query.get(int(id))
 
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
     app.run(debug=True) 
