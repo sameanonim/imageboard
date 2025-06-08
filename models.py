@@ -163,6 +163,10 @@ class Post(db.Model):
     )
     user = db.relationship('User', backref=db.backref('posts', lazy='dynamic'))
 
+    __table_args__ = (
+        db.Index('idx_user_id', 'user_id'),  # индекс на существующую колонку
+    )
+
     def __init__(self, content, thread_id, name, tripcode, ip_address, reply_to_id=None, user_id=None):
         self.content = content
         self.thread_id = thread_id

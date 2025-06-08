@@ -1,5 +1,6 @@
 from celery import Celery
 from kombu import Queue, Exchange
+from config import Config
 
 # Настройки Celery
 broker_url = 'redis://redis:6379/0'
@@ -36,8 +37,8 @@ task_max_retries = 3
 def make_celery(app):
     celery = Celery(
         app.import_name,
-        broker=Config.CELERY_BROKER_URL,
-        backend=Config.CELERY_RESULT_BACKEND
+        broker=broker_url,
+        backend=result_backend
     )
     celery.conf.update(app.config)
 

@@ -8,8 +8,6 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from config import Config
 from models import db, User
-from views import main, admin, api
-from views import moderation
 from filters import init_app as init_filters
 from celery_config import make_celery
 from utils.socket import init_socketio

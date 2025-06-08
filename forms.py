@@ -38,4 +38,13 @@ class TwoFactorVerifyForm(FlaskForm):
         DataRequired(),
         Length(min=6, max=6, message='Код должен содержать 6 цифр')
     ])
-    submit = SubmitField('Войти') 
+    submit = SubmitField('Войти')
+
+class ThreadForm(FlaskForm):
+    subject = StringField('Тема', validators=[DataRequired(), Length(max=100)])
+    content = TextAreaField('Сообщение', validators=[DataRequired(), Length(max=10000)])
+    name = StringField('Имя', validators=[Optional(), Length(max=50)])
+    tripcode = StringField('Трипкод', validators=[Optional(), Length(max=32)])
+    files = FileField('Файлы', validators=[Optional()])
+    captcha = StringField('Капча', validators=[DataRequired()])
+    submit = SubmitField('Создать тред') 
