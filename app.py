@@ -60,7 +60,7 @@ def register_blueprints(app: Flask) -> None:
     from views.auth import auth as auth_blueprint
     from views.admin import admin as admin_blueprint
     from views.api import api as api_blueprint
-    from views.moderation import moderation as moderation_blueprint
+    from views.moderation import bp as moderation_blueprint
     
     blueprints = {
         'main': main_blueprint,
@@ -147,7 +147,7 @@ def create_app(config_class: Type[BaseConfig] = current_config.__class__) -> Fla
         Flask: Настроенное приложение Flask
     """
     app = Flask(__name__)
-    app.config.from_object(config_class)
+    app.config.update(config_class().get_config())
     
     # Настройка логирования
     setup_logging(app)

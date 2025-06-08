@@ -4,6 +4,12 @@ from wtforms.validators import DataRequired, Length, Optional, Email, EqualTo, V
 from flask_wtf.file import FileAllowed
 from models import User
 
+class LoginForm(FlaskForm):
+    username = StringField('Имя пользователя', validators=[DataRequired(), Length(min=3, max=32)])
+    password = PasswordField('Пароль', validators=[DataRequired(), Length(min=6)])
+    remember = BooleanField('Запомнить меня')
+    submit = SubmitField('Войти')
+
 class PostForm(FlaskForm):
     name = StringField('Имя', validators=[Optional(), Length(max=50)])
     tripcode = StringField('Трипкод', validators=[Optional(), Length(max=32)])

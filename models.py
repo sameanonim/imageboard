@@ -317,6 +317,7 @@ class Post(BaseModel):
     
     Attributes:
         thread_id: ID треда
+        user_id: ID пользователя
         name: Имя автора
         tripcode: Трипкод
         ip_address: IP-адрес
@@ -333,6 +334,7 @@ class Post(BaseModel):
     )
     
     thread_id = db.Column(db.Integer, db.ForeignKey('threads.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     name = db.Column(db.String(64))
     tripcode = db.Column(db.String(32))
     ip_address = db.Column(db.String(45))

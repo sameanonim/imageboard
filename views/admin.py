@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
-from models import db, Board, Thread, Post, File, Admin, Ban, Report
+from models import db, Board, Thread, Post, File, User, Ban, Report
 from datetime import datetime, timedelta
 
 admin = Blueprint('admin', __name__)

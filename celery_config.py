@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from celery import Celery
 from kombu import Queue, Exchange
-from config import Config
+from config import config
 
 # Константы
 REDIS_HOST = 'redis'
