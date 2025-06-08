@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, session
 from flask_login import login_user, login_required, current_user
 from werkzeug.security import check_password_hash
 from models import db, User
-from forms import LoginForm, TwoFactorSetupForm, TwoFactorVerifyForm
+from forms import LoginForm, TwoFactorSetupForm, TwoFactorVerifyForm, RegisterForm
 from utils.two_factor import (
     generate_secret,
     generate_totp,
@@ -81,4 +81,22 @@ def two_factor_disable():
     current_user.disable_2fa()
     db.session.commit()
     flash('Двухфакторная аутентификация отключена', 'success')
-    return redirect(url_for('main.index')) 
+    return redirect(url_for('main.index'))
+
+@auth.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+        
+    form = RegisterForm()
+    if form.validate_on_submit():
+        user = User(
+            username=form.username.data,
+            email=form.email.data
+        )
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Регистрация успешна! Теперь вы можете войти.', 'success')
+        return redirect(url_for('auth.login'))
+    return render_template('auth/register.html', form=form) 

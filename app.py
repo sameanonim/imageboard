@@ -7,7 +7,7 @@ from flask_babel import Babel
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
-from config import BaseConfig, current_config
+from config import BaseConfig, Config
 from models import db, User
 from filters import init_app as init_filters
 from celery_config import make_celery
@@ -17,6 +17,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 from functools import wraps
+from datetime import datetime
 
 # Инициализация расширений
 db = SQLAlchemy()
@@ -125,18 +126,25 @@ def init_extensions(app: Flask) -> None:
     limiter.storage_uri = app.config['REDIS_URL']
     
     # Инициализация кэширования
-    cache.init_app(app)
+    cache.init_app(
+        app,
+        config={
+            'CACHE_TYPE': app.config['CACHE_TYPE'],
+            'CACHE_REDIS_URL': app.config['CACHE_REDIS_URL'],
+            'CACHE_DEFAULT_TIMEOUT': app.config['CACHE_DEFAULT_TIMEOUT'],
+            'CACHE_KEY_PREFIX': app.config['CACHE_KEY_PREFIX']
+        }
+    )
     
     # Инициализация Celery
-    global celery
-    celery = make_celery(app)
+    app.celery = make_celery(app)
     
     # Инициализация SocketIO
     init_socketio(app)
     
     app.logger.info('Initialized all extensions')
 
-def create_app(config_class: Type[BaseConfig] = current_config.__class__) -> Flask:
+def create_app(config_class: Type[BaseConfig] = Config.__class__) -> Flask:
     """
     Создание и настройка приложения Flask.
     
@@ -161,6 +169,11 @@ def create_app(config_class: Type[BaseConfig] = current_config.__class__) -> Fla
         """Обработка запроса перед его выполнением."""
         if request.args.get('lang'):
             session['lang'] = request.args.get('lang')
+    
+    # Добавление переменных в контекст шаблона
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow()}
     
     # Регистрация blueprints
     register_blueprints(app)

@@ -9,9 +9,11 @@ from pathlib import Path
 from sqlalchemy import event
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.ext.declarative import declared_attr
+from flask_caching import Cache
 
 logger = logging.getLogger(__name__)
 db = SQLAlchemy()
+cache = Cache()
 
 T = TypeVar('T')
 
@@ -29,13 +31,25 @@ class BaseModel(db.Model):
     
     def save(self) -> None:
         """Сохранение объекта в базу данных."""
-        db.session.add(self)
-        db.session.commit()
+        try:
+            db.session.add(self)
+            db.session.commit()
+            logger.info(f'Сохранен объект {self.__class__.__name__} с ID {self.id}')
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Ошибка при сохранении объекта {self.__class__.__name__} с ID {self.id}: {str(e)}')
+            raise
     
     def delete(self) -> None:
         """Удаление объекта из базы данных."""
-        db.session.delete(self)
-        db.session.commit()
+        try:
+            db.session.delete(self)
+            db.session.commit()
+            logger.info(f'Удален объект {self.__class__.__name__} с ID {self.id}')
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Ошибка при удалении объекта {self.__class__.__name__} с ID {self.id}: {str(e)}')
+            raise
     
     @classmethod
     def get_by_id(cls: T, id: int) -> Optional[T]:
@@ -48,9 +62,51 @@ class BaseModel(db.Model):
         Returns:
             Optional[T]: Объект или None
         """
-        return cls.query.get(id)
+        try:
+            obj = cls.query.get(id)
+            if obj is None:
+                logger.warning(f'Объект {cls.__name__} с ID {id} не найден')
+            return obj
+        except Exception as e:
+            logger.error(f'Ошибка при получении объекта {cls.__name__} с ID {id}: {str(e)}')
+            raise
 
-class User(UserMixin, BaseModel):
+class CacheableModel(BaseModel):
+    """Базовый класс для моделей с поддержкой кэширования."""
+    __abstract__ = True
+    
+    @classmethod
+    def get_cached(cls: T, id: int) -> Optional[T]:
+        """
+        Получение объекта из кэша или базы данных.
+        
+        Args:
+            id: ID объекта
+            
+        Returns:
+            Optional[T]: Объект или None
+        """
+        cache_key = f'{cls.__name__}:{id}'
+        obj = cache.get(cache_key)
+        if obj is None:
+            obj = cls.query.get(id)
+            if obj:
+                cache.set(cache_key, obj, timeout=300)  # 5 минут
+        return obj
+    
+    def save(self) -> None:
+        """Сохранение объекта в базу данных и обновление кэша."""
+        super().save()
+        cache_key = f'{self.__class__.__name__}:{self.id}'
+        cache.set(cache_key, self, timeout=300)
+    
+    def delete(self) -> None:
+        """Удаление объекта из базы данных и кэша."""
+        cache_key = f'{self.__class__.__name__}:{self.id}'
+        cache.delete(cache_key)
+        super().delete()
+
+class User(UserMixin, CacheableModel):
     """
     Модель пользователя.
     
@@ -103,6 +159,27 @@ class User(UserMixin, BaseModel):
         self.email = email
         self.set_password(password)
 
+    @validates('username')
+    def validate_username(self, key: str, username: str) -> str:
+        """
+        Валидация имени пользователя.
+        
+        Args:
+            key: Ключ поля
+            username: Имя пользователя для валидации
+            
+        Returns:
+            str: Валидное имя пользователя
+            
+        Raises:
+            ValueError: Если имя пользователя невалидное
+        """
+        if len(username) < 3 or len(username) > 32:
+            raise ValueError('Имя пользователя должно быть от 3 до 32 символов')
+        if not username.isalnum():
+            raise ValueError('Имя пользователя должно содержать только буквы и цифры')
+        return username
+
     @validates('email')
     def validate_email(self, key: str, email: str) -> str:
         """
@@ -118,9 +195,11 @@ class User(UserMixin, BaseModel):
         Raises:
             ValueError: Если email невалидный
         """
-        if not '@' in email:
-            raise ValueError('Invalid email address')
-        return email
+        if not '@' in email or not '.' in email:
+            raise ValueError('Невалидный email адрес')
+        if len(email) > 120:
+            raise ValueError('Email слишком длинный')
+        return email.lower()
 
     def set_password(self, password: str) -> None:
         """
@@ -128,7 +207,23 @@ class User(UserMixin, BaseModel):
         
         Args:
             password: Новый пароль
+            
+        Raises:
+            ValueError: Если пароль не соответствует требованиям
         """
+        if len(password) < 8:
+            raise ValueError('Пароль должен содержать минимум 8 символов')
+        if not any(c.isupper() for c in password):
+            raise ValueError('Пароль должен содержать хотя бы одну заглавную букву')
+        if not any(c.islower() for c in password):
+            raise ValueError('Пароль должен содержать хотя бы одну строчную букву')
+        if not any(c.isdigit() for c in password):
+            raise ValueError('Пароль должен содержать хотя бы одну цифру')
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password):
+            raise ValueError('Пароль должен содержать хотя бы один специальный символ')
+        if len(password) > 128:
+            raise ValueError('Пароль слишком длинный')
+            
         self.password_hash = generate_password_hash(password)
         
     def check_password(self, password: str) -> bool:
@@ -241,7 +336,10 @@ class Thread(BaseModel):
     __table_args__ = (
         db.Index('idx_threads_created_at', 'created_at'),
         db.Index('idx_threads_is_locked', 'is_locked'),
-        db.Index('idx_threads_is_pinned', 'is_pinned')
+        db.Index('idx_threads_is_pinned', 'is_pinned'),
+        db.Index('idx_threads_board_id', 'board_id'),
+        db.Index('idx_threads_updated_at', 'updated_at'),
+        db.Index('idx_threads_is_archived', 'is_archived')
     )
     
     board_id = db.Column(db.Integer, db.ForeignKey('boards.id'), nullable=False)
@@ -311,6 +409,25 @@ class Thread(BaseModel):
     def __repr__(self) -> str:
         return f'<Thread {self.subject}>'
 
+    @validates('views')
+    def validate_views(self, key: str, views: int) -> int:
+        """
+        Валидация количества просмотров.
+        
+        Args:
+            key: Ключ поля
+            views: Количество просмотров
+            
+        Returns:
+            int: Валидное количество просмотров
+            
+        Raises:
+            ValueError: Если количество просмотров отрицательное
+        """
+        if views < 0:
+            raise ValueError('Количество просмотров не может быть отрицательным')
+        return views
+
 class Post(BaseModel):
     """
     Модель поста.
@@ -330,7 +447,10 @@ class Post(BaseModel):
         db.Index('idx_posts_thread_id', 'thread_id'),
         db.Index('idx_posts_user_id', 'user_id'),
         db.Index('idx_posts_created_at', 'created_at'),
-        db.Index('idx_posts_reply_to_id', 'reply_to_id')
+        db.Index('idx_posts_reply_to_id', 'reply_to_id'),
+        db.Index('idx_posts_ip_address', 'ip_address'),
+        db.Index('idx_posts_report_count', 'report_count'),
+        db.Index('idx_posts_is_op', 'is_op')
     )
     
     thread_id = db.Column(db.Integer, db.ForeignKey('threads.id'), nullable=False)
@@ -377,6 +497,27 @@ class Post(BaseModel):
         self.report_count += 1
         self.save()
 
+    @validates('report_count')
+    def validate_report_count(self, key: str, count: int) -> int:
+        """
+        Валидация количества жалоб.
+        
+        Args:
+            key: Ключ поля
+            count: Количество жалоб
+            
+        Returns:
+            int: Валидное количество жалоб
+            
+        Raises:
+            ValueError: Если количество жалоб отрицательное или превышает лимит
+        """
+        if count < 0:
+            raise ValueError('Количество жалоб не может быть отрицательным')
+        if count > 100:  # Максимальное количество жалоб
+            raise ValueError('Превышен лимит жалоб')
+        return count
+
     def __repr__(self) -> str:
         return f'<Post {self.id}>'
 
@@ -415,76 +556,53 @@ class File(BaseModel):
     
     post = relationship('Post', backref=db.backref('files', lazy=True))
 
-    def __init__(self, filename: str, original_filename: str, 
-                 mime_type: str, size: int, path: str, post_id: int) -> None:
+    ALLOWED_EXTENSIONS = {
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/gif': ['.gif'],
+        'image/webp': ['.webp'],
+        'video/mp4': ['.mp4'],
+        'video/webm': ['.webm'],
+        'video/ogg': ['.ogv'],
+        'application/pdf': ['.pdf']
+    }
+    
+    @validates('filename')
+    def validate_filename(self, key: str, filename: str) -> str:
         """
-        Инициализация файла.
+        Валидация имени файла.
         
         Args:
-            filename: Имя файла
-            original_filename: Оригинальное имя файла
-            mime_type: MIME-тип
-            size: Размер файла
-            path: Путь к файлу
-            post_id: ID поста
-        """
-        self.filename = filename
-        self.original_filename = original_filename
-        self.mime_type = mime_type
-        self.file_size = size
-        self.file_path = path
-        self.post_id = post_id
-
-    @property
-    def is_image(self) -> bool:
-        """
-        Проверка является ли файл изображением.
-        
+            key: Ключ поля
+            filename: Имя файла для валидации
+            
         Returns:
-            bool: True если файл изображение
+            str: Валидное имя файла
+            
+        Raises:
+            ValueError: Если имя файла невалидное
         """
-        return self.mime_type.startswith('image/')
-
-    @property
-    def is_video(self) -> bool:
-        """
-        Проверка является ли файл видео.
-        
-        Returns:
-            bool: True если файл видео
-        """
-        return self.mime_type.startswith('video/')
-
-    @property
-    def is_processed(self) -> bool:
-        """
-        Проверка обработан ли файл.
-        
-        Returns:
-            bool: True если файл обработан
-        """
-        return self.processed and not self.error
-
-    @property
-    def has_error(self) -> bool:
-        """
-        Проверка есть ли ошибка обработки.
-        
-        Returns:
-            bool: True если есть ошибка
-        """
-        return bool(self.error)
+        if not filename:
+            raise ValueError('Имя файла не может быть пустым')
+        if len(filename) > 255:
+            raise ValueError('Имя файла слишком длинное')
+        if not any(filename.endswith(ext) for exts in self.ALLOWED_EXTENSIONS.values() for ext in exts):
+            raise ValueError('Неподдерживаемое расширение файла')
+        return filename
 
     def delete(self) -> None:
         """Удаление файла и его превью."""
         try:
-            if os.path.exists(self.file_path):
-                os.remove(self.file_path)
-            if self.thumbnail_path and os.path.exists(self.thumbnail_path):
-                os.remove(self.thumbnail_path)
+            # Проверяем существование директории
+            if self.file_path and os.path.exists(os.path.dirname(self.file_path)):
+                if os.path.exists(self.file_path):
+                    os.remove(self.file_path)
+            if self.thumbnail_path and os.path.exists(os.path.dirname(self.thumbnail_path)):
+                if os.path.exists(self.thumbnail_path):
+                    os.remove(self.thumbnail_path)
             super().delete()
         except Exception as e:
-            logger.error(f'Error deleting file {self.filename}: {e}')
+            logger.error(f'Ошибка при удалении файла {self.filename}: {e}')
             raise
 
     def __repr__(self) -> str:

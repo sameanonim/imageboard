@@ -1,0 +1,33 @@
+FROM python:3.9-slim
+
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Создание пользователя celery
+RUN groupadd -r celery && useradd -r -g celery celery
+
+# Создание рабочей директории
+WORKDIR /app
+
+# Копирование зависимостей
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копирование кода приложения
+COPY . .
+
+# Ожидание доступности базы данных
+COPY wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
+
+# Установка прав
+RUN chown -R celery:celery /app /wait-for-it.sh
+
+# Переключение на пользователя celery
+USER celery
+
+# Запуск Celery
+CMD ["/wait-for-it.sh", "db:5432", "--", "celery", "-A", "app.celery", "worker", "--loglevel=info"] 

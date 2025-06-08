@@ -1,6 +1,6 @@
 import os
 import logging
-from app import create_app, celery
+from app import create_app
 from celery.signals import worker_ready, worker_shutdown, task_failure
 from celery.exceptions import MaxRetriesExceededError
 
@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 # Создаем приложение
 app = create_app()
 app.app_context().push()
+
+# Получаем экземпляр Celery
+celery = app.celery
 
 @worker_ready.connect
 def worker_ready_handler(sender, **kwargs):

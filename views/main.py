@@ -31,11 +31,15 @@ def index():
     """Главная страница с популярными тредами."""
     try:
         threads = get_popular_threads()
-        return render_template('index.html', threads=threads)
+        boards = Board.query.filter_by(is_hidden=False).paginate(
+            page=request.args.get('page', 1, type=int),
+            per_page=current_app.config['BOARDS_PER_PAGE']
+        )
+        return render_template('index.html', threads=threads, boards=boards)
     except Exception as e:
         logger.error(f"Error loading index page: {str(e)}")
         flash('Ошибка при загрузке страницы', 'error')
-        return render_template('index.html', threads=[])
+        return render_template('index.html', threads=[], boards=[])
 
 @main.route('/board/<string:board_id>')
 def board(board_id):

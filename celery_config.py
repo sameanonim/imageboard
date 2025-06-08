@@ -1,7 +1,8 @@
 from typing import Dict, Any
 from celery import Celery
 from kombu import Queue, Exchange
-from config import config
+from config import Config
+import os
 
 # Константы
 REDIS_HOST = 'redis'
@@ -13,26 +14,27 @@ MAX_MEMORY_PER_CHILD = 200000  # 200MB
 MAX_TASKS_PER_CHILD = 1000
 
 # Настройки подключения
-BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
-RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
+RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/2')
 
 # Настройки очередей
-TASK_QUEUES = (
-    Queue('default', Exchange('default'), routing_key='default'),
-    Queue('image_processing', Exchange('image_processing'), routing_key='image_processing'),
-    Queue('video_processing', Exchange('video_processing'), routing_key='video_processing'),
+task_queues = (
+    Queue('celery', routing_key='celery'),
+    Queue('image_processing', routing_key='image_processing'),
+    Queue('video_processing', routing_key='video_processing'),
 )
 
 # Настройки маршрутизации
-TASK_ROUTES: Dict[str, Dict[str, str]] = {
-    'app.tasks.process_image': {'queue': 'image_processing'},
-    'app.tasks.process_video': {'queue': 'video_processing'},
+task_routes = {
+    'utils.tasks.process_image': {'queue': 'image_processing'},
+    'utils.tasks.process_video': {'queue': 'video_processing'},
 }
 
 # Настройки производительности
 WORKER_PREFETCH_MULTIPLIER = 1
 WORKER_MAX_TASKS_PER_CHILD = MAX_TASKS_PER_CHILD
 WORKER_MAX_MEMORY_PER_CHILD = MAX_MEMORY_PER_CHILD
+WORKER_CONCURRENCY = 2
 
 # Настройки логирования
 WORKER_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s] %(message)s'
@@ -43,6 +45,14 @@ TASK_ACKS_LATE = True
 TASK_REJECT_ON_WORKER_LOST = True
 TASK_DEFAULT_RETRY_DELAY = DEFAULT_RETRY_DELAY
 TASK_MAX_RETRIES = MAX_RETRIES
+
+# Настройки брокера
+broker_url = 'amqp://guest:guest@rabbitmq:5672//'
+result_backend = 'redis://redis:6379/0'
+
+# Настройки безопасности
+worker_user = 'celery'
+worker_group = 'celery'
 
 def make_celery(app: Any) -> Celery:
     """

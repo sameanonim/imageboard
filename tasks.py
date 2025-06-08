@@ -12,6 +12,10 @@ from celery.exceptions import MaxRetriesExceededError
 from functools import wraps
 import time
 from datetime import datetime
+from app import create_app
+
+# Создаем приложение для контекста
+app = create_app()
 
 logger = logging.getLogger(__name__)
 

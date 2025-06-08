@@ -1,58 +1,71 @@
-version: '3.8'
-
 services:
   web:
     build: .
     ports:
       - "5000:5000"
     environment:
-      - FLASK_APP=app.py
       - FLASK_ENV=production
-      - FLASK_DEBUG=False
+      - RATELIMIT_STORAGE_URL=redis://redis:6379/1
       - DATABASE_URL=postgresql://imageboard:imageboard@db/imageboard
-      - REDIS_URL=redis://redis:6379/0
-      - UPLOAD_FOLDER=uploads
-      - MAX_CONTENT_LENGTH=16777216
-      - ALLOWED_EXTENSIONS=png,jpg,jpeg,gif,webp,mp4,webm
-      - MAX_FILES_PER_POST=4
-      - LOG_LEVEL=INFO
-      - DEFAULT_LANGUAGE=ru
-      - THEME_DEFAULT=light
-    volumes:
-      - ./uploads:/app/uploads
-      - ./backups:/app/backups
-      - ./logs:/app/logs
-      - ./search_index:/app/search_index
     depends_on:
       - db
       - redis
-      - celery
+      - rabbitmq
+    networks:
+      - app-network
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    environment:
+      - C_FORCE_ROOT=false
+      - DATABASE_URL=postgresql://imageboard:imageboard@db/imageboard
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+    networks:
+      - app-network
 
   db:
-    image: postgres:13
+    image: postgres:13-alpine
     environment:
       - POSTGRES_USER=imageboard
       - POSTGRES_PASSWORD=imageboard
       - POSTGRES_DB=imageboard
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   redis:
-    image: redis:6
+    image: redis:6-alpine
     ports:
       - "6380:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
 
-  celery:
-    build: .
-    command: celery -A app.celery worker --loglevel=info
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      - FLASK_APP=app.py
-      - FLASK_ENV=production
-      - DATABASE_URL=postgresql://imageboard:imageboard@db/imageboard
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - app-network
 
 volumes:
-  postgres_data: 
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+
+networks:
+  app-network:
+    driver: bridge

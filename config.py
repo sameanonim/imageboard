@@ -5,6 +5,9 @@ from datetime import timedelta
 from typing import Dict, Any, Optional, Type
 from pathlib import Path
 from dataclasses import dataclass, field
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import redis
 
 load_dotenv()
 
@@ -59,6 +62,7 @@ class BaseConfig:
     MAX_CONTENT_LENGTH: int = field(default_factory=lambda: int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)))
     ALLOWED_EXTENSIONS: set = field(default_factory=lambda: {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm'})
     MAX_FILES_PER_POST: int = field(default_factory=lambda: int(os.getenv('MAX_FILES_PER_POST', 4)))
+    MAX_IMAGE_SIZE: int = field(default_factory=lambda: int(os.getenv('MAX_IMAGE_SIZE', 4096)))
     THUMBNAIL_SIZE: tuple = (200, 200)
     PREVIEW_SIZE: tuple = (800, 800)
 
@@ -96,6 +100,10 @@ class BaseConfig:
     CACHE_REDIS_URL: str = field(default_factory=lambda: os.getenv('CACHE_REDIS_URL', 'redis://localhost:6379/0'))
     CACHE_DEFAULT_TIMEOUT: int = field(default_factory=lambda: int(os.getenv('CACHE_TIMEOUT', 300)))
     CACHE_KEY_PREFIX: str = 'imageboard:'
+    POPULAR_THREADS_CACHE_KEY: str = 'popular_threads'
+    THREAD_CACHE_KEY: str = 'thread_{id}'
+    POST_CACHE_KEY: str = 'post_{id}'
+    USER_CACHE_KEY: str = 'user_{id}'
 
     # Логирование
     LOG_LEVEL: str = field(default_factory=lambda: os.getenv('LOG_LEVEL', 'INFO'))
@@ -127,6 +135,45 @@ class BaseConfig:
     THEME_DEFAULT: str = field(default_factory=lambda: os.getenv('THEME_DEFAULT', 'light'))
     THEME_COOKIE_NAME: str = 'theme'
     THEME_COOKIE_DURATION: timedelta = timedelta(days=365)
+
+    # Безопасность
+    SECURITY_PASSWORD_SALT: str = field(default_factory=lambda: os.getenv('SECURITY_PASSWORD_SALT', secrets.token_hex(16)))
+    SECURITY_PASSWORD_HASH: str = 'bcrypt'
+    SECURITY_PASSWORD_LENGTH_MIN: int = 8
+    SECURITY_PASSWORD_LENGTH_MAX: int = 128
+    SECURITY_PASSWORD_COMPLEXITY: Dict[str, bool] = field(default_factory=lambda: {
+        'UPPER': True,
+        'LOWER': True,
+        'DIGITS': True,
+        'SPECIAL': True
+    })
+    SECURITY_PASSWORD_HISTORY: int = 5
+    SECURITY_LOGIN_ATTEMPTS: int = 5
+    SECURITY_LOGIN_TIMEOUT: int = 300
+    SECURITY_EMAIL_VALIDATOR_ARGS: Dict[str, Any] = field(default_factory=lambda: {
+        'check_deliverability': True,
+        'test_environment': False
+    })
+    
+    # CSRF защита
+    WTF_CSRF_ENABLED: bool = True
+    WTF_CSRF_TIME_LIMIT: int = 3600
+    WTF_CSRF_SSL_STRICT: bool = True
+    
+    # XSS защита
+    SECURITY_HEADERS: Dict[str, str] = field(default_factory=lambda: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'X-XSS-Protection': '1; mode=block',
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'",
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
+    })
+
+    # Настройки Redis для rate limiting
+    RATELIMIT_STORAGE_URL: str = field(default_factory=lambda: os.getenv('RATELIMIT_STORAGE_URL', 'redis://redis:6379/1'))
+    RATELIMIT_STRATEGY: str = field(default_factory=lambda: os.getenv('RATELIMIT_STRATEGY', 'fixed-window'))
+    RATELIMIT_DEFAULT: str = field(default_factory=lambda: os.getenv('RATELIMIT_DEFAULT', '200 per day;50 per hour;10 per minute'))
+    RATELIMIT_HEADERS_ENABLED: bool = field(default_factory=lambda: os.getenv('RATELIMIT_HEADERS_ENABLED', 'True').lower() == 'true')
 
     def validate(self) -> None:
         """Проверка корректности настроек."""
@@ -216,10 +263,25 @@ class ProductionConfig(BaseConfig):
 _config_map: Dict[str, Type[BaseConfig]] = {
     'development': DevelopmentConfig,
     'testing': TestingConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'production': ProductionConfig
 }
 
-env_name = os.getenv('FLASK_ENV', 'default')
-config: BaseConfig = _config_map[env_name]()  # <-- основной объект конфигурации
-config.validate()
+# Экспортируем конфигурацию в зависимости от окружения
+Config = _config_map[os.getenv('FLASK_ENV', 'development')]()
+
+# Инициализация Redis
+redis_client = redis.Redis(
+    host='redis',
+    port=6379,
+    db=1,
+    decode_responses=True
+)
+
+# Инициализация Limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=Config.RATELIMIT_STORAGE_URL,
+    strategy=Config.RATELIMIT_STRATEGY,
+    default_limits=[Config.RATELIMIT_DEFAULT],
+    headers_enabled=Config.RATELIMIT_HEADERS_ENABLED
+)
