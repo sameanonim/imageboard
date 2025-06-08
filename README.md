@@ -17,48 +17,116 @@
 
 ## Требования
 
-- Python 3.8+
-- Redis
-- PostgreSQL (опционально)
-- FFmpeg (для обработки видео)
+- Docker Desktop
+- Git
+- Bash (для Linux/Mac) или PowerShell (для Windows)
 
-## Установка
+## Быстрое развертывание
+
+### Linux/Mac
+
+1. Скачайте скрипт развертывания:
+```bash
+curl -O https://raw.githubusercontent.com/sameanonim/imageboard/main/deploy.sh
+```
+
+2. Сделайте скрипт исполняемым:
+```bash
+chmod +x deploy.sh
+```
+
+3. Запустите скрипт:
+```bash
+./deploy.sh
+```
+
+### Windows
+
+1. Скачайте скрипт развертывания:
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/sameanonim/imageboard/main/deploy.ps1" -OutFile "deploy.ps1"
+```
+
+2. Запустите PowerShell от имени администратора и выполните:
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope Process
+.\deploy.ps1
+```
+
+## Ручное развертывание
 
 1. Клонируйте репозиторий:
 ```bash
-git clone https://github.com/yourusername/imageboard.git
+git clone https://github.com/sameanonim/imageboard.git
 cd imageboard
 ```
 
-2. Создайте виртуальное окружение:
+2. Создайте необходимые директории:
+
+Linux/Mac:
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
+mkdir -p uploads backups logs search_index
+chmod 755 uploads backups logs search_index
 ```
 
-3. Установите зависимости:
-```bash
-pip install -r requirements.txt
+Windows:
+```powershell
+New-Item -ItemType Directory -Force -Path uploads, backups, logs, search_index
 ```
 
-4. Создайте файл `.env`:
-```env
-FLASK_APP=app.py
-FLASK_ENV=development
-SECRET_KEY=your-secret-key
-DATABASE_URL=sqlite:///imageboard.db
-REDIS_URL=redis://localhost:6379/0
+3. Соберите и запустите контейнеры:
+```bash
+docker-compose build
+docker-compose up -d
 ```
 
-5. Инициализируйте базу данных:
+4. Инициализируйте базу данных:
 ```bash
-flask db upgrade
+docker-compose exec web flask db upgrade
 ```
 
-6. Создайте администратора:
+## Доступ к приложению
+
+После успешного развертывания приложение будет доступно по адресу:
+http://localhost:5000
+
+## Управление контейнерами
+
+- Просмотр логов:
 ```bash
-flask create-admin
+docker-compose logs -f
+```
+
+- Остановка контейнеров:
+```bash
+docker-compose down
+```
+
+- Перезапуск контейнеров:
+```bash
+docker-compose restart
+```
+
+## Структура проекта
+
+- `web` - основной контейнер с приложением
+- `db` - контейнер с PostgreSQL
+- `redis` - контейнер с Redis
+- `celery` - контейнер с Celery worker
+
+## Переменные окружения
+
+Основные настройки приложения находятся в файле `.env`. При первом запуске он будет создан автоматически.
+
+## Обновление
+
+Для обновления приложения до последней версии:
+
+```bash
+git pull
+docker-compose build
+docker-compose up -d
+docker-compose exec web flask db upgrade
 ```
 
 ## Запуск
@@ -177,4 +245,31 @@ mypy .
 
 ## Лицензия
 
-MIT License. См. файл LICENSE для подробностей. 
+MIT License. См. файл LICENSE для подробностей.
+
+## Устранение неполадок
+
+### Windows
+
+1. Если возникает ошибка с правами выполнения скрипта:
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope Process
+```
+
+2. Если Docker не запускается:
+- Убедитесь, что Docker Desktop запущен
+- Проверьте, что WSL2 установлен и включен
+- Перезапустите Docker Desktop
+
+### Linux
+
+1. Если возникают проблемы с правами доступа:
+```bash
+sudo chown -R $USER:$USER .
+```
+
+2. Если порт 5000 занят:
+```bash
+sudo lsof -i :5000
+sudo kill -9 <PID>
+``` 

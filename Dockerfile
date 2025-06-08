@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     libmagickwand-dev \
     imagemagick \
     ffmpeg \
+    gcc \
+    python3-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Установка рабочей директории
