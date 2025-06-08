@@ -145,7 +145,6 @@ class Post(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     thread_id = db.Column(db.Integer, db.ForeignKey('threads.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     name = db.Column(db.String(64))
     tripcode = db.Column(db.String(32))
     ip_address = db.Column(db.String(45))
@@ -167,12 +166,13 @@ class Post(db.Model):
         db.Index('idx_user_id', 'user_id'),  # индекс на существующую колонку
     )
 
-    def __init__(self, content, thread_id, name, tripcode, ip_address, reply_to_id=None, user_id=None):
+    def __init__(self, content, thread_id, name, tripcode, ip_address, reply_to_id=None):
         self.content = content
         self.thread_id = thread_id
         self.name = name
         self.tripcode = tripcode
         self.ip_address = ip_address
+        self.user_id = user_id
         self.reply_to_id = reply_to_id
         self.user_id = user_id
 

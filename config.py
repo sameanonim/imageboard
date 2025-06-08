@@ -77,6 +77,8 @@ class Config:
     SOCKET_PING_INTERVAL = int(os.getenv('SOCKET_PING_INTERVAL', 25))
     SOCKET_PING_TIMEOUT = int(os.getenv('SOCKET_PING_TIMEOUT', 120))
     SOCKET_MAX_CONNECTIONS = int(os.getenv('SOCKET_MAX_CONNECTIONS', 1000))
+    SOCKETIO_MESSAGE_QUEUE = os.getenv('SOCKETIO_MESSAGE_QUEUE', REDIS_URL)
+    SOCKETIO_ASYNC_MODE = os.getenv('SOCKETIO_ASYNC_MODE', 'threading')
     
     # Настройки кэширования
     CACHE_TYPE = 'redis'

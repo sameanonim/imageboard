@@ -15,7 +15,7 @@ import magic
 from celery import Celery
 from utils.cache import get_popular_threads, get_thread_from_cache, invalidate_thread_cache
 from utils.tasks import process_image, process_video
-from utils.backup import create_backup, restore_backup, delete_backup, get_backups
+from utils.backup import create_backup, restore_backup, delete_backup, list_backups
 from utils.socket import (
     notify_new_post, notify_new_reply, notify_thread_locked,
     notify_thread_unlocked, notify_post_deleted, notify_achievement
@@ -458,7 +458,7 @@ def backup():
         flash('Доступ запрещен', 'error')
         return redirect(url_for('main.index'))
         
-    backups = get_backups()
+    backups = list_backups()
     return render_template('backup.html', backups=backups)
 
 @main.route('/backup/create', methods=['POST'])
