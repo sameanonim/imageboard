@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "macros.html" import pagination %}
+
+{% block title %}/{{ board.id }}/ - {{ board.name }}{% endblock %}
+
+{% block content %}
+<div class="board-container">
+    <div class="board-header">
+        <h1>/{{ board.id }}/ - {{ board.name }}</h1>
+        <div class="board-controls">
+            <a href="{{ url_for('main.board_rss', board_id=board.id) }}" 
+               class="rss-link" 
+               title="RSS-лента доски">
+                <i class="fas fa-rss"></i>
+            </a>
+            <div class="sort-controls">
+                <span class="sort-label">Сортировка:</span>
+                <div class="sort-buttons">
+                    <a href="{{ url_for('main.board', board_id=board.id, sort='activity', page=1) }}" 
+                       class="btn btn-sm {% if request.args.get('sort') == 'activity' %}btn-primary{% else %}btn-secondary{% endif %}">
+                        По активности
+                    </a>
+                    <a href="{{ url_for('main.board', board_id=board.id, sort='date', page=1) }}" 
+                       class="btn btn-sm {% if request.args.get('sort') == 'date' or not request.args.get('sort') %}btn-primary{% else %}btn-secondary{% endif %}">
+                        По дате
+                    </a>
+                    <a href="{{ url_for('main.board', board_id=board.id, sort='replies', page=1) }}" 
+                       class="btn btn-sm {% if request.args.get('sort') == 'replies' %}btn-primary{% else %}btn-secondary{% endif %}">
+                        По ответам
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% if board.is_nsfw %}
+        <div class="nsfw-warning">Внимание: NSFW контент</div>
+        {% endif %}
+    </div>
+
+    <div class="threads-container">
+        <div class="threads-header">
+            <h2>Треды</h2>
+            {% if not board.is_locked %}
+            <a href="{{ url_for('main.new_thread', board_id=board.id) }}" class="new-thread-btn">
+                Создать тред
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="threads-grid">
+            {% for thread in threads.items %}
+            <div class="thread-card {% if thread.is_sticky %}sticky{% endif %}">
+                <div class="thread-header">
+                    <span class="thread-number">№{{ thread.id }}</span>
+                    {% if thread.is_sticky %}
+                    <span class="sticky-badge">Закреплен</span>
+                    {% endif %}
+                    {% if thread.is_locked %}
+                    <span class="locked-badge">Закрыт</span>
+                    {% endif %}
+                    <h3>{{ thread.subject }}</h3>
+                    <span class="thread-date">{{ thread.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                </div>
+                
+                {% set op_post = thread.posts.filter_by(is_op=True).first() %}
+                {% if op_post %}
+                <div class="thread-preview">
+                    <div class="post-content">
+                        {% if op_post.subject %}
+                        <h3>{{ op_post.subject }}</h3>
+                        {% endif %}
+                        <p>{{ op_post.content[:200] }}{% if op_post.content|length > 200 %}...{% endif %}</p>
+                    </div>
+                    {% if op_post.files.first() %}
+                    <div class="post-files">
+                        {% for file in op_post.files %}
+                        <div class="file-preview">
+                            <img src="{{ url_for('static', filename='uploads/' + file.filename) }}" 
+                                 alt="{{ file.original_filename }}"
+                                 loading="lazy">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <div class="thread-meta">
+                    <span class="post-count">{{ thread.posts.count() }} постов</span>
+                    <span class="last-update">
+                        Обновлено: {{ thread.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                    </span>
+                </div>
+                
+                <a href="{{ url_for('main.thread', board_name=board.name, thread_id=thread.id) }}" 
+                   class="thread-link">
+                    Открыть тред
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        {{ pagination(threads, 'main.board', board_id=board.id, sort=request.args.get('sort', 'date')) }}
+    </div>
+
+    <div class="new-thread">
+        <a href="{{ url_for('main.new_thread', board_id=board.id) }}" class="btn btn-primary">Создать тред</a>
+    </div>
+</div>
+{% endblock %} 

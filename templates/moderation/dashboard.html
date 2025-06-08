@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель модератора{% endblock %}
+
+{% block content %}
+<div class="mod-dashboard">
+    <h1>Панель модератора</h1>
+    <h2>Жалобы</h2>
+    {% if reports %}
+        <table class="mod-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Пост</th>
+                    <th>Причина</th>
+                    <th>IP</th>
+                    <th>Время</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>{{ report.id }}</td>
+                    <td><a href="{{ url_for('main.thread', thread_id=report.post.thread_id) }}#p{{ report.post_id }}">№{{ report.post_id }}</a></td>
+                    <td>{{ report.reason }}</td>
+                    <td>{{ report.ip_address }}</td>
+                    <td>{{ report.created_at|datetime }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('moderation.delete_post', post_id=report.post_id) }}" style="display:inline">
+                            <button type="submit" onclick="return confirm('Удалить пост?')">Удалить</button>
+                        </form>
+                        <form method="post" action="{{ url_for('moderation.ban_ip', ip=report.ip_address) }}" style="display:inline">
+                            <button type="submit" onclick="return confirm('Забанить IP?')">Бан</button>
+                        </form>
+                        <a href="{{ url_for('main.thread', thread_id=report.post.thread_id) }}#p{{ report.post_id }}" target="_blank">Перейти</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Жалоб нет.</p>
+    {% endif %}
+
+    <h2>Баны</h2>
+    {% if bans %}
+        <table class="mod-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>IP</th>
+                    <th>Причина</th>
+                    <th>Время</th>
+                    <th>Истекает</th>
+                    <th>Активен</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ban in bans %}
+                <tr>
+                    <td>{{ ban.id }}</td>
+                    <td>{{ ban.ip_address }}</td>
+                    <td>{{ ban.reason }}</td>
+                    <td>{{ ban.created_at|datetime }}</td>
+                    <td>{{ ban.expires_at|datetime }}</td>
+                    <td>{% if ban.is_active %}Да{% else %}Нет{% endif %}</td>
+                    <td>
+                        {% if ban.is_active %}
+                        <form method="post" action="{{ url_for('moderation.unban_ip', ban_id=ban.id) }}" style="display:inline">
+                            <button type="submit" onclick="return confirm('Снять бан?')">Снять бан</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Банов нет.</p>
+    {% endif %}
+</div>
+{% endblock %} 

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение входа{% endblock %}
+
+{% block content %}
+<div class="two-factor-verify">
+    <h1>Подтверждение входа</h1>
+    
+    <div class="verify-form">
+        <p>Для завершения входа введите 6-значный код из приложения аутентификации:</p>
+        
+        <form method="POST">
+            {{ form.csrf_token }}
+            <div class="form-group">
+                {{ form.token.label }}
+                {{ form.token(class="form-control") }}
+                {% if form.token.errors %}
+                <div class="errors">
+                    {% for error in form.token.errors %}
+                    <span class="error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {{ form.submit(class="btn btn-primary") }}
+        </form>
+    </div>
+</div>
+{% endblock %} 

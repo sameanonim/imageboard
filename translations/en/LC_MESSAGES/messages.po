@@ -1,0 +1,94 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: imageboard\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-03-20 12:00+0300\n"
+"PO-Revision-Date: 2024-03-20 12:00+0300\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Imageboard"
+msgstr "Imageboard"
+
+msgid "Home"
+msgstr "Home"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Archive"
+msgstr "Archive"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "Logout"
+msgstr "Logout"
+
+msgid "Admin Panel"
+msgstr "Admin Panel"
+
+msgid "Reply"
+msgstr "Reply"
+
+msgid "Submit"
+msgstr "Submit"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Link"
+msgstr "Link"
+
+msgid "Quote"
+msgstr "Quote"
+
+msgid "Report"
+msgstr "Report"
+
+msgid "Hide"
+msgstr "Hide"
+
+msgid "Expand"
+msgstr "Expand"
+
+msgid "Name (optional)"
+msgstr "Name (optional)"
+
+msgid "Your reply..."
+msgstr "Your reply..."
+
+msgid "Maximum %(max_files)s files, up to %(max_size)s each"
+msgstr "Maximum %(max_files)s files, up to %(max_size)s each"
+
+msgid "Your browser does not support video."
+msgstr "Your browser does not support video."
+
+msgid "Send report for this post?"
+msgstr "Send report for this post?"
+
+msgid "Report sent"
+msgstr "Report sent"
+
+msgid "Error sending report"
+msgstr "Error sending report"
+
+msgid "Pinned"
+msgstr "Pinned"
+
+msgid "Locked"
+msgstr "Locked"
+
+msgid "Save draft"
+msgstr "Save draft"
+
+msgid "RSS feed"
+msgstr "RSS feed"
+
+msgid "All rights reserved."
+msgstr "All rights reserved." 

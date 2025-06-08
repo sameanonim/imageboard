@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль пользователя{% endblock %}
+
+{% block content %}
+<div class="profile">
+    <h1>Профиль пользователя</h1>
+    
+    <div class="profile-info">
+        <h2>{{ user.username }}</h2>
+        <p>Дата регистрации: {{ user.created_at.strftime('%d.%m.%Y') }}</p>
+        <p>Статус: {% if user.is_admin %}Администратор{% else %}Пользователь{% endif %}</p>
+        
+        {% if current_user.is_admin %}
+        <div class="admin-actions">
+            <h3>Действия администратора</h3>
+            {% if current_user.two_factor_enabled %}
+            <form action="{{ url_for('auth.two_factor_disable') }}" method="POST" class="inline-form">
+                <button type="submit" class="btn btn-danger">Отключить 2FA</button>
+            </form>
+            {% else %}
+            <a href="{{ url_for('auth.two_factor_setup') }}" class="btn btn-primary">Настроить 2FA</a>
+            {% endif %}
+            <a href="{{ url_for('main.backup') }}" class="btn btn-primary">Управление резервными копиями</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

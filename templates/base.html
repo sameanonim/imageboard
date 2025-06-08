@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="{{ g.get('lang_code', 'ru') }}" data-theme="{{ g.get('theme', 'light') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Imageboard - форум для общения и обмена изображениями">
+    <meta name="keywords" content="imageboard, форум, общение, изображения">
+    <meta name="author" content="Imageboard Team">
+    <meta name="theme-color" content="#4a90e2">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="Imageboard">
+    <meta property="og:description" content="Форум для общения и обмена изображениями">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:image" content="{{ url_for('static', filename='img/logo.png', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Imageboard">
+    <meta name="twitter:description" content="Форум для общения и обмена изображениями">
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/logo.png', _external=True) }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <title>{% block title %}{% endblock %} - Imageboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block styles %}{% endblock %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <a href="{{ url_for('main.index') }}" class="nav-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Imageboard Logo">
+            </a>
+            <div class="nav-menu">
+                <a href="{{ url_for('main.index') }}" class="nav-link">Главная</a>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.profile') }}" class="nav-link">Профиль</a>
+                    {% if current_user.is_admin %}
+                        <a href="{{ url_for('main.backup') }}" class="nav-link">Резервные копии</a>
+                    {% endif %}
+                    <a href="{{ url_for('auth.logout') }}" class="nav-link">Выйти</a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="nav-link">Войти</a>
+                    <a href="{{ url_for('auth.register') }}" class="nav-link">Регистрация</a>
+                {% endif %}
+            </div>
+            <div class="nav-lang">
+                <select onchange="changeLanguage(this.value)">
+                    <option value="ru" {% if g.get('lang_code') == 'ru' %}selected{% endif %}>Русский</option>
+                    <option value="en" {% if g.get('lang_code') == 'en' %}selected{% endif %}>English</option>
+                </select>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}" role="alert">
+                            {{ message }}
+                            <button type="button" class="alert-close" onclick="this.parentElement.remove()">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p>&copy; {{ now.year }} Imageboard. Все права защищены.</p>
+                    <p>
+                        <a href="{{ url_for('main.rules') }}">Правила</a> |
+                        <a href="{{ url_for('main.about') }}">О нас</a> |
+                        <a href="{{ url_for('main.contact') }}">Контакты</a>
+                    </p>
+                </div>
+                <div class="footer-stats">
+                    <p>Пользователей онлайн: {{ online_users }}</p>
+                    <p>Всего постов: {{ total_posts }}</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div id="achievements-data" style="display: none;" data-achievements="{{ achievements|tojson|safe }}"></div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/achievements.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script>
+        // Функция смены языка
+        function changeLanguage(lang) {
+            fetch('{{ url_for("main.set_language") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ lang: lang })
+            }).then(() => {
+                window.location.reload();
+            });
+        }
+
+        // Функция для работы с уведомлениями
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.setAttribute('role', 'alert');
+            notification.setAttribute('aria-live', 'polite');
+
+            const container = document.getElementById('notifications') ||
+                createNotificationContainer();
+            container.appendChild(notification);
+
+            requestAnimationFrame(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateY(0)';
+            });
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-20px)';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        // Создание контейнера для уведомлений
+        function createNotificationContainer() {
+            const container = document.createElement('div');
+            container.id = 'notifications';
+            container.setAttribute('aria-live', 'polite');
+            document.body.appendChild(container);
+            return container;
+        }
+
+        // Обработка ошибок
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Error:', error);
+            showNotification('Произошла ошибка. Пожалуйста, обновите страницу.', 'error');
+            return false;
+        };
+
+        // Проверка поддержки сервис-воркера
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful');
+                })
+                .catch(error => {
+                    console.error('ServiceWorker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html> 

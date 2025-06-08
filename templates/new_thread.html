@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Новый тред - /{{ board.name }}/{% endblock %}
+
+{% block content %}
+<div class="new-thread-container">
+    <h1>Создать новый тред в /{{ board.name }}/</h1>
+    
+    <form action="{{ url_for('main.new_thread', board_name=board.name) }}" 
+          method="post" enctype="multipart/form-data" class="new-thread-form">
+        <div class="form-group">
+            <label for="name">Имя:</label>
+            <input type="text" id="name" name="name" maxlength="50">
+        </div>
+
+        <div class="form-group">
+            <label for="subject">Тема:</label>
+            <input type="text" id="subject" name="subject" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label for="content">Сообщение:</label>
+            <textarea id="content" name="content" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="files">Файлы:</label>
+            <input type="file" id="files" name="files" multiple 
+                   accept="image/*" max="{{ board.max_files_per_post }}">
+            <div class="file-hint">
+                Максимум {{ board.max_files_per_post }} файлов, 
+                до {{ (board.max_file_size / 1024 / 1024)|round|int }}MB каждый
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="submit-btn">Создать тред</button>
+            <a href="{{ url_for('main.board', board_name=board.name) }}" class="cancel-btn">
+                Отмена
+            </a>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.querySelector('#files');
+    const fileHint = document.querySelector('.file-hint');
+    
+    fileInput.addEventListener('change', function() {
+        const files = this.files;
+        if (files.length > {{ board.max_files_per_post }}) {
+            alert(`Максимальное количество файлов: {{ board.max_files_per_post }}`);
+            this.value = '';
+            return;
+        }
+        
+        for (let file of files) {
+            if (file.size > {{ board.max_file_size }}) {
+                alert(`Файл ${file.name} слишком большой. Максимальный размер: {{ (board.max_file_size / 1024 / 1024)|round|int }}MB`);
+                this.value = '';
+                return;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

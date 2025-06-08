@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Настройка двухфакторной аутентификации{% endblock %}
+
+{% block content %}
+<div class="two-factor-setup">
+    <h1>Настройка двухфакторной аутентификации</h1>
+    
+    <div class="setup-steps">
+        <div class="step">
+            <h2>1. Установите приложение для 2FA</h2>
+            <p>Скачайте и установите одно из следующих приложений:</p>
+            <ul>
+                <li>Google Authenticator</li>
+                <li>Microsoft Authenticator</li>
+                <li>Authy</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h2>2. Отсканируйте QR-код</h2>
+            <p>Откройте приложение и отсканируйте этот QR-код:</p>
+            <div class="qr-code">
+                <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+            </div>
+        </div>
+        
+        <div class="step">
+            <h2>3. Введите код подтверждения</h2>
+            <p>Введите 6-значный код из приложения:</p>
+            <form method="POST">
+                {{ form.csrf_token }}
+                <div class="form-group">
+                    {{ form.token.label }}
+                    {{ form.token(class="form-control") }}
+                    {% if form.token.errors %}
+                    <div class="errors">
+                        {% for error in form.token.errors %}
+                        <span class="error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "macros.html" import pagination %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<div class="boards-container">
+    <h1>Доски</h1>
+    <div class="boards-grid">
+        {% for board in boards.items %}
+            <div class="board-card">
+                <h2>/{{ board.id }}/ - {{ board.name }}</h2>
+                <p>{{ board.description }}</p>
+                <div class="board-stats">
+                    <span>Тредов: {{ board.threads.count() }}</span>
+                    <span>Постов: {{ board.posts.count() }}</span>
+                </div>
+                <a href="{{ url_for('main.board', board_id=board.id) }}" class="btn btn-primary">Перейти</a>
+            </div>
+        {% endfor %}
+    </div>
+    {{ pagination(boards, 'main.index') }}
+</div>
+{% endblock %} 

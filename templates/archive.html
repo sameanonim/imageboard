@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="archive-page">
+    <h1>Архив тредов</h1>
+    
+    {% if board %}
+    <div class="board-header">
+        <h2>/{{ board.name }}/ - {{ board.description }}</h2>
+    </div>
+    {% endif %}
+    
+    <div class="archive-controls">
+        <form method="GET" class="archive-filter">
+            <div class="form-group">
+                <label for="board">Доска:</label>
+                <select name="board" id="board" class="form-control">
+                    <option value="">Все доски</option>
+                    {% for b in boards %}
+                    <option value="{{ b.id }}" {% if b.id == board.id %}selected{% endif %}>
+                        /{{ b.name }}/ - {{ b.description }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Применить</button>
+        </form>
+    </div>
+    
+    <div class="archive-list">
+        {% for thread in threads.items %}
+        <div class="archive-item">
+            <div class="archive-header">
+                <span class="archive-board">/{{ thread.board.name }}/</span>
+                <span class="archive-date">
+                    Архивирован: {{ thread.archived_at.strftime('%d.%m.%Y %H:%M') }}
+                </span>
+            </div>
+            
+            <div class="archive-content">
+                <h3 class="archive-subject">
+                    <a href="{{ url_for('main.thread', board_id=thread.board_id, thread_id=thread.id) }}">
+                        {{ thread.subject or 'Без темы' }}
+                    </a>
+                </h3>
+                
+                <div class="archive-meta">
+                    <span class="archive-author">{{ thread.name or 'Аноним' }}</span>
+                    <span class="archive-replies">{{ thread.reply_count }} ответов</span>
+                    <span class="archive-age">
+                        Возраст: {{ ((thread.archived_at - thread.created_at).days) }} дней
+                    </span>
+                </div>
+                
+                <div class="archive-reason">
+                    Причина: {{ thread.archive_reason }}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="no-archives">
+            Архивных тредов не найдено
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if threads.pages > 1 %}
+    <div class="pagination-container">
+        {{ macros.pagination(threads, 'main.archive') }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% from "macros.html" import pagination %}
+
+{% block title %}{% if posts[0].subject %}{{ posts[0].subject }} - {% endif %}/{{ board.name }}/{% endblock %}
+
+{% block content %}
+<div class="thread-container">
+    <div class="thread-header">
+        <h1>
+            {% if posts[0].subject %}
+            {{ posts[0].subject }}
+            {% else %}
+            Тред №{{ thread.id }}
+            {% endif %}
+        </h1>
+        <div class="thread-controls">
+            <a href="{{ url_for('main.thread_rss', board_id=board.id, thread_id=thread.id) }}" 
+               class="rss-link" 
+               title="RSS-лента треда">
+                <i class="fas fa-rss"></i>
+            </a>
+        </div>
+        <div class="thread-meta">
+            <span class="board-name">/{{ board.name }}/</span>
+            {% if thread.is_sticky %}
+            <span class="sticky-badge">Закреплен</span>
+            {% endif %}
+            {% if thread.is_locked %}
+            <span class="locked-badge">Закрыт</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="quick-reply">
+        <form id="quick-reply-form" class="quick-reply-form" method="POST" action="{{ url_for('main.reply', thread_id=thread.id) }}" enctype="multipart/form-data">
+            <div class="quick-reply-header">
+                <button type="button" class="btn btn-link" id="expand-quick-reply">
+                    <i class="fas fa-expand"></i> Развернуть
+                </button>
+            </div>
+            <div class="quick-reply-content" style="display: none;">
+                <div class="form-group">
+                    <input type="text" name="name" class="form-control" placeholder="Имя (опционально)">
+                </div>
+                <div class="form-group">
+                    <textarea name="content" class="form-control" rows="3" placeholder="Ваш ответ..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="file-upload">
+                        <input type="file" name="files" multiple accept="image/*,video/*,.gif" class="file-input">
+                        <div class="file-preview"></div>
+                    </div>
+                    <small class="form-text text-muted">
+                        Максимум {{ config.MAX_FILES_PER_POST }} файлов, до {{ config.MAX_FILE_SIZE|filesizeformat }} каждый
+                    </small>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Отправить</button>
+                    <button type="button" class="btn btn-secondary" id="cancel-quick-reply">Отмена</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="posts-container">
+        {% for post in posts.items %}
+        <div class="post" id="post-{{ post.id }}">
+            <div class="post-header">
+                <span class="post-number">№{{ post.id }}</span>
+                {% if post.name %}
+                <span class="post-name">{{ post.name }}</span>
+                {% endif %}
+                {% if post.tripcode %}
+                <span class="post-tripcode">##{{ post.tripcode }}</span>
+                {% endif %}
+                <span class="post-date">
+                    {{ post.created_at.strftime('%d.%m.%Y %H:%M') }}
+                </span>
+                <button class="hide-post" data-post-id="{{ post.id }}">Скрыть</button>
+            </div>
+
+            <div class="post-content">
+                {% if post.files %}
+                    <div class="post-files">
+                        {% for file in post.files %}
+                            <div class="post-file">
+                                {% if file.is_video %}
+                                    <video class="post-video" controls preload="metadata">
+                                        <source src="{{ url_for('static', filename='uploads/' + file.filename) }}" type="video/{{ file.filename.split('.')[-1] }}">
+                                        Ваш браузер не поддерживает видео.
+                                    </video>
+                                {% elif file.is_gif %}
+                                    <a href="{{ url_for('static', filename='uploads/' + file.filename) }}" target="_blank">
+                                        <img src="{{ url_for('static', filename='uploads/' + file.filename) }}" 
+                                             alt="{{ file.original_name }}" 
+                                             class="post-image gif-image"
+                                             loading="lazy">
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('static', filename='uploads/' + file.filename) }}" target="_blank">
+                                        <img src="{{ url_for('static', filename='uploads/thumbnails/' + file.thumbnail) }}" 
+                                             alt="{{ file.original_name }}" 
+                                             class="post-image">
+                                    </a>
+                                {% endif %}
+                                <div class="file-info">
+                                    <span class="file-name">{{ file.original_name }}</span>
+                                    {% if not file.is_video %}
+                                        <span class="file-size">{{ file.size|filesizeformat }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="post-text">{{ post.content|safe }}</div>
+            </div>
+
+            <div class="post-actions">
+                <a href="#post-{{ post.id }}" class="post-link">Ссылка</a>
+                {% if not thread.is_locked %}
+                <button class="quote-btn" data-post-id="{{ post.id }}">Цитировать</button>
+                {% endif %}
+                <button class="report-btn" data-post-id="{{ post.id }}">Пожаловаться</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {{ pagination(posts, 'main.thread', thread_id=thread.id) }}
+
+    {% if not thread.is_locked %}
+    <div class="reply-form">
+        <h2>Ответить</h2>
+        <form method="post" action="{{ url_for('main.reply', thread_id=thread.id) }}" enctype="multipart/form-data">
+            {{ form.csrf_token }}
+            <div class="form-group">
+                {{ form.name.label }}
+                {{ form.name(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.content.label }}
+                {{ form.content(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.files.label }}
+                {{ form.files(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.captcha.label }}
+                {{ form.captcha(class="form-control") }}
+                <img src="{{ url_for('main.captcha') }}" alt="Captcha">
+            </div>
+            {{ form.submit(class="btn btn-primary") }}
+            <button type="button" class="btn btn-secondary" id="save-draft">Сохранить черновик</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработка кнопки цитирования
+    document.querySelectorAll('.quote-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.dataset.postId;
+            const post = document.querySelector(`#post-${postId}`);
+            const content = post.querySelector('.post-text').textContent;
+            const textarea = document.querySelector('#content');
+            textarea.value += `>>${postId}\n${content}\n\n`;
+            textarea.focus();
+        });
+    });
+
+    // Обработка кнопки жалобы
+    document.querySelectorAll('.report-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.dataset.postId;
+            if (confirm('Отправить жалобу на этот пост?')) {
+                fetch(`/api/posts/${postId}/report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Жалоба отправлена');
+                    } else {
+                        alert('Ошибка при отправке жалобы');
+                    }
+                });
+            }
+        });
+    });
+
+    // Обработка достижений
+    const achievementsData = document.getElementById('achievements-data');
+    if (achievementsData) {
+        const achievements = JSON.parse(achievementsData.dataset.achievements);
+        if (achievements && achievements.length > 0) {
+            showAchievements(achievements);
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 
