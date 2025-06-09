@@ -55,6 +55,29 @@ body {
     padding: 20px;
 }
 
+/* Приветствие */
+.welcome-container {
+    text-align: center;
+    padding: 3rem 1rem;
+    margin-bottom: 2rem;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-container h1 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.welcome-text {
+    font-size: 1.2rem;
+    color: var(--text-color);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
 /* Заголовки */
 h1, h2, h3, h4, h5, h6 {
     margin-bottom: 1rem;
@@ -1360,4 +1383,109 @@ main {
         transform: translateX(100%);
         opacity: 0;
     }
+}
+
+/* Стили для страницы правил */
+.rules {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.rules-section {
+    margin-bottom: 2rem;
+}
+
+.rules-section h2 {
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.rules-section ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+}
+
+.rules-section li {
+    margin-bottom: 0.5rem;
+}
+
+/* Стили для страницы о нас */
+.about {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.about-section {
+    margin-bottom: 2rem;
+}
+
+.about-section h2 {
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.about-section p {
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.about-section ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+}
+
+.about-section li {
+    margin-bottom: 0.5rem;
+}
+
+/* Стили для страницы контактов */
+.contact {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.contact-section {
+    margin-bottom: 2rem;
+}
+
+.contact-section h2 {
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.contact-section p {
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.contact-section ul {
+    list-style-type: none;
+    margin-left: 0;
+}
+
+.contact-section li {
+    margin-bottom: 0.5rem;
+}
+
+.social-links {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.social-links a {
+    color: #4a90e2;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid #4a90e2;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.social-links a:hover {
+    background-color: #4a90e2;
+    color: white;
 } 

@@ -33,13 +33,23 @@ def index():
         threads = get_popular_threads()
         boards = Board.query.filter_by(is_hidden=False).paginate(
             page=request.args.get('page', 1, type=int),
-            per_page=current_app.config['BOARDS_PER_PAGE']
+            per_page=current_app.config.get('BOARDS_PER_PAGE', 20)
         )
         return render_template('index.html', threads=threads, boards=boards)
     except Exception as e:
         logger.error(f"Error loading index page: {str(e)}")
         flash('Ошибка при загрузке страницы', 'error')
-        return render_template('index.html', threads=[], boards=[])
+        # Создаем пустой объект пагинации
+        empty_pagination = type('EmptyPagination', (), {
+            'items': [],
+            'page': 1,
+            'pages': 1,
+            'total': 0,
+            'has_prev': False,
+            'has_next': False,
+            'iter_pages': lambda *args, **kwargs: []
+        })
+        return render_template('index.html', threads=[], boards=empty_pagination)
 
 @main.route('/board/<string:board_id>')
 def board(board_id):
@@ -431,13 +441,13 @@ def archive():
                          board=board,
                          boards=boards)
 
-@main.route('/set-language/<lang>')
+@main.route('/set-language/<lang>', methods=['POST'])
 def set_language(lang):
-    if lang not in ['ru', 'en']:
-        lang = 'ru'
-    response = redirect(request.referrer or url_for('main.index'))
-    response.set_cookie('language', lang, max_age=31536000)  # 1 год
-    return response
+    """Установка языка интерфейса."""
+    if lang in ['ru', 'en']:
+        session['lang'] = lang
+        return jsonify({'status': 'success', 'lang': lang})
+    return jsonify({'status': 'error', 'message': 'Invalid language'}), 400
 
 @main.route('/set-theme', methods=['POST'])
 def set_theme():
@@ -511,4 +521,19 @@ def delete_backup(timestamp):
     except Exception as e:
         flash(f'Ошибка при удалении резервной копии: {str(e)}', 'error')
         
-    return redirect(url_for('main.backup')) 
+    return redirect(url_for('main.backup'))
+
+@main.route('/rules')
+def rules():
+    """Страница с правилами форума."""
+    return render_template('rules.html')
+
+@main.route('/about')
+def about():
+    """Страница с информацией о форуме."""
+    return render_template('about.html')
+
+@main.route('/contact')
+def contact():
+    """Страница с контактной информацией."""
+    return render_template('contact.html') 

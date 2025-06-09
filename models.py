@@ -106,6 +106,51 @@ class CacheableModel(BaseModel):
         cache.delete(cache_key)
         super().delete()
 
+class Achievement(BaseModel):
+    """
+    Модель достижения.
+    
+    Attributes:
+        name: Название достижения
+        description: Описание достижения
+        icon: Иконка достижения
+        points: Очки за достижение
+    """
+    __table_args__ = (
+        db.Index('idx_achievements_name', 'name'),
+        db.Index('idx_achievements_points', 'points')
+    )
+
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    icon = db.Column(db.String(100), nullable=False)
+    points = db.Column(db.Integer, default=0)
+
+    def __init__(self, name: str, description: str, icon: str, points: int = 0) -> None:
+        """
+        Инициализация достижения.
+        
+        Args:
+            name: Название достижения
+            description: Описание достижения
+            icon: Иконка достижения
+            points: Очки за достижение
+        """
+        self.name = name
+        self.description = description
+        self.icon = icon
+        self.points = points
+
+    def __repr__(self) -> str:
+        return f'<Achievement {self.name}>'
+
+# Определяем таблицу связи user_achievements после определения классов User и Achievement
+user_achievements = db.Table('user_achievements',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('achievement_id', db.Integer, db.ForeignKey('achievements.id'), primary_key=True),
+    db.Column('created_at', db.DateTime, default=datetime.utcnow)
+)
+
 class User(UserMixin, CacheableModel):
     """
     Модель пользователя.
@@ -139,11 +184,12 @@ class User(UserMixin, CacheableModel):
     two_factor_secret = db.Column(db.String(32))
     two_factor_enabled = db.Column(db.Boolean, default=False)
     
-    posts = relationship('Post', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    # Определяем отношение с Achievement через таблицу user_achievements
     achievements = relationship(
         'Achievement',
-        secondary='user_achievements',
-        backref=db.backref('users', lazy='dynamic')
+        secondary=user_achievements,
+        backref=db.backref('users', lazy='dynamic'),
+        lazy='dynamic'
     )
 
     def __init__(self, username: str, email: str, password: str) -> None:
@@ -469,7 +515,9 @@ class Post(BaseModel):
         backref=db.backref('parent', remote_side=[id]),
         lazy='dynamic'
     )
-    user = relationship('User', backref=db.backref('posts', lazy='dynamic'))
+    
+    # Определяем простое отношение к User
+    user = relationship('User')
 
     def __init__(self, content: str, thread_id: int, name: str, 
                  tripcode: Optional[str], ip_address: str, 
@@ -664,44 +712,6 @@ class Report(BaseModel):
 
     def __repr__(self) -> str:
         return f'<Report {self.id}>'
-
-class Achievement(BaseModel):
-    """
-    Модель достижения.
-    
-    Attributes:
-        name: Название достижения
-        description: Описание достижения
-        icon: Иконка достижения
-        points: Очки за достижение
-    """
-    __table_args__ = (
-        db.Index('idx_achievements_name', 'name'),
-        db.Index('idx_achievements_points', 'points')
-    )
-
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    icon = db.Column(db.String(100), nullable=False)
-    points = db.Column(db.Integer, default=0)
-
-    def __init__(self, name: str, description: str, icon: str, points: int = 0) -> None:
-        """
-        Инициализация достижения.
-        
-        Args:
-            name: Название достижения
-            description: Описание достижения
-            icon: Иконка достижения
-            points: Очки за достижение
-        """
-        self.name = name
-        self.description = description
-        self.icon = icon
-        self.points = points
-
-    def __repr__(self) -> str:
-        return f'<Achievement {self.name}>'
 
 class UserAchievement(BaseModel):
     """

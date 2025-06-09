@@ -4,12 +4,20 @@
 {% block title %}Главная{% endblock %}
 
 {% block content %}
+<div class="welcome-container">
+    <h1>Добро пожаловать на Imageboard!</h1>
+    <p class="welcome-text">
+        Здесь вы можете общаться на различные темы, делиться изображениями и находить единомышленников.
+        Выберите интересующую вас доску или создайте новый тред.
+    </p>
+</div>
+
 <div class="boards-container">
-    <h1>Доски</h1>
+    <h2>Доски</h2>
     <div class="boards-grid">
         {% for board in boards.items %}
             <div class="board-card">
-                <h2>/{{ board.id }}/ - {{ board.name }}</h2>
+                <h3>/{{ board.id }}/ - {{ board.name }}</h3>
                 <p>{{ board.description }}</p>
                 <div class="board-stats">
                     <span>Тредов: {{ board.threads.count() }}</span>

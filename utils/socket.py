@@ -15,7 +15,11 @@ def init_socketio(app):
             async_mode=app.config['SOCKETIO_ASYNC_MODE'],
             cors_allowed_origins="*",
             logger=True,
-            engineio_logger=True
+            engineio_logger=True,
+            ping_timeout=app.config['SOCKETIO_PING_TIMEOUT'],
+            ping_interval=app.config['SOCKETIO_PING_INTERVAL'],
+            max_http_buffer_size=app.config['SOCKETIO_MAX_HTTP_BUFFER_SIZE'],
+            manage_session=False  # Отключаем управление сессиями
         )
         logger.info('SocketIO initialized successfully')
     except Exception as e:
@@ -34,6 +38,13 @@ def handle_connect():
                 'username': current_user.username
             })
             logger.info(f'User {current_user.id} connected')
+        else:
+            emit('connected', {
+                'status': 'connected',
+                'user_id': None,
+                'username': None
+            })
+            logger.info('Anonymous user connected')
     except Exception as e:
         logger.error(f'Error handling connect: {str(e)}')
         emit('error', {'message': 'Connection error'})

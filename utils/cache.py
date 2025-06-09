@@ -13,21 +13,25 @@ cache = Cache()
 def init_cache(app):
     """Инициализация кэша."""
     try:
-        cache.init_app(
-            app,
-            config={
-                'CACHE_TYPE': 'redis',
-                'CACHE_REDIS_URL': app.config['REDIS_URL'],
-                'CACHE_DEFAULT_TIMEOUT': 300,
-                'CACHE_KEY_PREFIX': 'imageboard_',
-                'CACHE_OPTIONS': {
-                    'socket_timeout': 5,
-                    'socket_connect_timeout': 5,
-                    'retry_on_timeout': True
+        if 'cache' not in app.extensions:
+            cache.init_app(
+                app,
+                config={
+                    'CACHE_TYPE': 'redis',
+                    'CACHE_REDIS_URL': app.config['REDIS_URL'],
+                    'CACHE_DEFAULT_TIMEOUT': 300,
+                    'CACHE_KEY_PREFIX': 'imageboard_',
+                    'CACHE_OPTIONS': {
+                        'socket_timeout': 5,
+                        'socket_connect_timeout': 5,
+                        'retry_on_timeout': True
+                    }
                 }
-            }
-        )
-        logger.info('Cache initialized successfully')
+            )
+            app.extensions['cache'] = cache
+            logger.info('Cache initialized successfully')
+        else:
+            logger.info('Cache already initialized')
     except Exception as e:
         logger.error(f'Error initializing cache: {str(e)}')
         raise

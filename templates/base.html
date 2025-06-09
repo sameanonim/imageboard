@@ -93,19 +93,18 @@
         </div>
     </footer>
 
-    <div id="achievements-data" style="display: none;" data-achievements="{{ achievements|tojson|safe }}"></div>
+    <div id="achievements-data" style="display: none;" data-achievements="{{ achievements|default([])|tojson|safe }}"></div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/achievements.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script>
         // Функция смены языка
         function changeLanguage(lang) {
-            fetch('{{ url_for("main.set_language") }}', {
+            fetch(`/set-language/${lang}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ lang: lang })
+                }
             }).then(() => {
                 window.location.reload();
             });

@@ -3,25 +3,61 @@ const socket = io({
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5
+    reconnectionAttempts: 5,
+    timeout: 20000,
+    autoConnect: true,
+    transports: ['websocket', 'polling']
 });
 
 // Обработка подключения
 socket.on('connect', () => {
     console.log('Connected to server');
     showNotification('Подключено к серверу', 'success');
+    
+    // Присоединяемся к треду, если мы на странице треда
+    if (currentThreadId) {
+        socket.emit('join_thread', { thread_id: currentThreadId });
+    }
 });
 
 // Обработка отключения
-socket.on('disconnect', () => {
-    console.log('Disconnected from server');
+socket.on('disconnect', (reason) => {
+    console.log('Disconnected from server:', reason);
     showNotification('Отключено от сервера', 'error');
+    
+    // Если отключение произошло из-за ошибки сервера, пробуем переподключиться
+    if (reason === 'io server disconnect') {
+        socket.connect();
+    }
 });
 
 // Обработка ошибок
 socket.on('error', (data) => {
     console.error('Socket error:', data);
     showNotification(data.message || 'Ошибка соединения', 'error');
+});
+
+// Обработка ошибки подключения
+socket.on('connect_error', (error) => {
+    console.error('Connection error:', error);
+    showNotification('Ошибка подключения к серверу', 'error');
+});
+
+// Обработка успешного переподключения
+socket.on('reconnect', (attemptNumber) => {
+    console.log('Reconnected after', attemptNumber, 'attempts');
+    showNotification('Переподключено к серверу', 'success');
+    
+    // Присоединяемся к треду после переподключения
+    if (currentThreadId) {
+        socket.emit('join_thread', { thread_id: currentThreadId });
+    }
+});
+
+// Обработка неудачного переподключения
+socket.on('reconnect_failed', () => {
+    console.error('Failed to reconnect');
+    showNotification('Не удалось переподключиться к серверу', 'error');
 });
 
 // Обработка новых постов
@@ -267,11 +303,6 @@ function formatDate(dateString) {
         hour: '2-digit',
         minute: '2-digit'
     });
-}
-
-// Присоединение к треду при загрузке страницы
-if (currentThreadId) {
-    socket.emit('join_thread', { thread_id: currentThreadId });
 }
 
 // Выход из треда при уходе со страницы

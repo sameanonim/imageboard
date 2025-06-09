@@ -38,7 +38,7 @@ class BaseConfig:
     })
 
     # Redis
-    REDIS_URL: str = field(default_factory=lambda: os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
+    REDIS_URL: str = field(default_factory=lambda: os.getenv('REDIS_URL', 'redis://localhost:6380/0'))
     REDIS_OPTIONS: Dict[str, Any] = field(default_factory=lambda: {
         'socket_timeout': int(os.getenv('REDIS_TIMEOUT', 5)),
         'socket_connect_timeout': int(os.getenv('REDIS_CONNECT_TIMEOUT', 5)),
@@ -89,11 +89,14 @@ class BaseConfig:
     API_RATE_LIMIT_STORAGE_URL: str = field(default_factory=lambda: os.getenv('API_RATE_LIMIT_STORAGE_URL', 'redis://localhost:6379/0'))
 
     # WebSocket
-    SOCKET_PING_INTERVAL: int = field(default_factory=lambda: int(os.getenv('SOCKET_PING_INTERVAL', 25)))
-    SOCKET_PING_TIMEOUT: int = field(default_factory=lambda: int(os.getenv('SOCKET_PING_TIMEOUT', 120)))
+    SOCKET_PING_INTERVAL: int = field(default_factory=lambda: int(os.getenv('SOCKET_PING_INTERVAL', 10)))
+    SOCKET_PING_TIMEOUT: int = field(default_factory=lambda: int(os.getenv('SOCKET_PING_TIMEOUT', 20)))
     SOCKET_MAX_CONNECTIONS: int = field(default_factory=lambda: int(os.getenv('SOCKET_MAX_CONNECTIONS', 1000)))
     SOCKETIO_MESSAGE_QUEUE: str = field(default_factory=lambda: os.getenv('SOCKETIO_MESSAGE_QUEUE', 'redis://localhost:6379/0'))
-    SOCKETIO_ASYNC_MODE: str = field(default_factory=lambda: os.getenv('SOCKETIO_ASYNC_MODE', 'threading'))
+    SOCKETIO_ASYNC_MODE: str = field(default_factory=lambda: os.getenv('SOCKETIO_ASYNC_MODE', 'eventlet'))
+    SOCKETIO_PING_TIMEOUT: int = field(default_factory=lambda: int(os.getenv('SOCKETIO_PING_TIMEOUT', 20)))
+    SOCKETIO_PING_INTERVAL: int = field(default_factory=lambda: int(os.getenv('SOCKETIO_PING_INTERVAL', 10)))
+    SOCKETIO_MAX_HTTP_BUFFER_SIZE: int = field(default_factory=lambda: int(os.getenv('SOCKETIO_MAX_HTTP_BUFFER_SIZE', 1000000)))
 
     # Кэш
     CACHE_TYPE: str = 'redis'
@@ -170,7 +173,7 @@ class BaseConfig:
     })
 
     # Настройки Redis для rate limiting
-    RATELIMIT_STORAGE_URL: str = field(default_factory=lambda: os.getenv('RATELIMIT_STORAGE_URL', 'redis://redis:6379/1'))
+    RATELIMIT_STORAGE_URL: str = field(default_factory=lambda: os.getenv('RATELIMIT_STORAGE_URL', 'redis://localhost:6380/1'))
     RATELIMIT_STRATEGY: str = field(default_factory=lambda: os.getenv('RATELIMIT_STRATEGY', 'fixed-window'))
     RATELIMIT_DEFAULT: str = field(default_factory=lambda: os.getenv('RATELIMIT_DEFAULT', '200 per day;50 per hour;10 per minute'))
     RATELIMIT_HEADERS_ENABLED: bool = field(default_factory=lambda: os.getenv('RATELIMIT_HEADERS_ENABLED', 'True').lower() == 'true')

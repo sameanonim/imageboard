@@ -34,13 +34,11 @@ def validate_tripcode(form, field):
 class LoginForm(FlaskForm):
     username = StringField('Имя пользователя', validators=[
         DataRequired(),
-        Length(min=3, max=32),
-        validate_username
+        Length(min=3, max=32)
     ])
     password = PasswordField('Пароль', validators=[
         DataRequired(),
-        Length(min=8, max=128),
-        validate_password_strength
+        Length(min=8, max=128)
     ])
     remember = BooleanField('Запомнить меня')
     submit = SubmitField('Войти')

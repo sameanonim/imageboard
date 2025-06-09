@@ -2,31 +2,38 @@ from typing import Optional, Callable, Any, Dict, Type
 from flask import Flask, request, render_template, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_babel import Babel
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from config import BaseConfig, Config
-from models import db, User
+from models import db, User, Post
 from filters import init_app as init_filters
 from celery_config import make_celery
-from utils.socket import init_socketio
+from utils.socket import init_socketio, socketio
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Инициализация расширений
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 babel = Babel()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=Config.RATELIMIT_STORAGE_URL,
+    strategy=Config.RATELIMIT_STRATEGY,
+    default_limits=[Config.RATELIMIT_DEFAULT],
+    headers_enabled=Config.RATELIMIT_HEADERS_ENABLED
+)
 celery = None
 cache = Cache()
+socketio = None  # Инициализируем как None, будет установлено позже
 
 def setup_logging(app: Flask) -> None:
     """
@@ -88,18 +95,18 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(404)
     def not_found_error(error: Any) -> tuple[str, int]:
         app.logger.warning(f'Page not found: {request.url}')
-        return render_template('errors/404.html'), 404
+        return render_template('errors/404.html', achievements=[]), 404
     
     @app.errorhandler(500)
     def internal_error(error: Any) -> tuple[str, int]:
         db.session.rollback()
         app.logger.error(f'Server Error: {error}')
-        return render_template('errors/500.html'), 500
+        return render_template('errors/500.html', achievements=[]), 500
     
     @app.errorhandler(403)
     def forbidden_error(error: Any) -> tuple[str, int]:
         app.logger.warning(f'Forbidden: {request.url}')
-        return render_template('errors/403.html'), 403
+        return render_template('errors/403.html', achievements=[]), 403
 
 def init_extensions(app: Flask) -> None:
     """
@@ -108,6 +115,8 @@ def init_extensions(app: Flask) -> None:
     Args:
         app: Flask приложение
     """
+    global socketio
+    
     # Инициализация базы данных
     db.init_app(app)
     migrate.init_app(app, db)
@@ -119,22 +128,17 @@ def init_extensions(app: Flask) -> None:
     login_manager.login_message_category = 'info'
     
     # Инициализация локализации
-    babel.init_app(app, locale_selector=lambda: session.get('lang', app.config['DEFAULT_LANGUAGE']))
+    def get_locale():
+        return session.get('language', app.config['BABEL_DEFAULT_LOCALE'])
+    
+    babel.init_app(app, locale_selector=get_locale)
     
     # Инициализация ограничителя запросов
     limiter.init_app(app)
     limiter.storage_uri = app.config['REDIS_URL']
     
     # Инициализация кэширования
-    cache.init_app(
-        app,
-        config={
-            'CACHE_TYPE': app.config['CACHE_TYPE'],
-            'CACHE_REDIS_URL': app.config['CACHE_REDIS_URL'],
-            'CACHE_DEFAULT_TIMEOUT': app.config['CACHE_DEFAULT_TIMEOUT'],
-            'CACHE_KEY_PREFIX': app.config['CACHE_KEY_PREFIX']
-        }
-    )
+    cache.init_app(app)
     
     # Инициализация Celery
     app.celery = make_celery(app)
@@ -144,7 +148,7 @@ def init_extensions(app: Flask) -> None:
     
     app.logger.info('Initialized all extensions')
 
-def create_app(config_class: Type[BaseConfig] = Config.__class__) -> Flask:
+def create_app(config_class: Type[BaseConfig] = Config) -> Flask:
     """
     Создание и настройка приложения Flask.
     
@@ -155,7 +159,7 @@ def create_app(config_class: Type[BaseConfig] = Config.__class__) -> Flask:
         Flask: Настроенное приложение Flask
     """
     app = Flask(__name__)
-    app.config.update(config_class().get_config())
+    app.config.update(config_class.get_config())
     
     # Настройка логирования
     setup_logging(app)
@@ -167,13 +171,34 @@ def create_app(config_class: Type[BaseConfig] = Config.__class__) -> Flask:
     @app.before_request
     def before_request() -> None:
         """Обработка запроса перед его выполнением."""
-        if request.args.get('lang'):
-            session['lang'] = request.args.get('lang')
+        lang = request.args.get('lang')
+        if lang and lang in ['ru', 'en']:
+            session['language'] = lang
+            
+        # Обновляем last_seen для авторизованных пользователей
+        if current_user.is_authenticated:
+            current_user.last_seen = datetime.utcnow()
+            db.session.commit()
     
     # Добавление переменных в контекст шаблона
     @app.context_processor
     def inject_now():
-        return {'now': datetime.utcnow()}
+        achievements = session.get('achievements', [])
+        if not isinstance(achievements, list):
+            achievements = []
+        
+        # Получаем количество онлайн пользователей
+        online_users = User.query.filter(User.last_seen >= datetime.utcnow() - timedelta(minutes=5)).count()
+        
+        # Получаем общее количество постов
+        total_posts = Post.query.count()
+        
+        return {
+            'now': datetime.utcnow(),
+            'achievements': achievements,
+            'online_users': online_users,
+            'total_posts': total_posts
+        }
     
     # Регистрация blueprints
     register_blueprints(app)
@@ -208,11 +233,12 @@ def load_user(id: str) -> Optional[User]:
     """
     return User.query.get(int(id))
 
-def with_app_context(f: Callable) -> Callable:
+def with_app_context(app: Flask, f: Callable) -> Callable:
     """
     Декоратор для выполнения функции в контексте приложения.
     
     Args:
+        app: Flask приложение
         f: Функция для выполнения
         
     Returns:
