@@ -174,7 +174,7 @@ class User(UserMixin, CacheableModel):
     
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
     is_superadmin = db.Column(db.Boolean, default=False)
     is_banned = db.Column(db.Boolean, default=False)
     ban_reason = db.Column(db.Text)
@@ -335,8 +335,8 @@ class Board(BaseModel):
     is_locked = db.Column(db.Boolean, default=False)
     is_hidden = db.Column(db.Boolean, default=False)
     
-    threads = relationship('Thread', backref='board', lazy='dynamic',
-                         cascade='all, delete-orphan')
+    threads = relationship('Thread', backref=db.backref('board', lazy='joined'),
+                         lazy='dynamic', cascade='all, delete-orphan')
 
     @validates('name')
     def validate_name(self, key: str, name: str) -> str:
@@ -402,9 +402,8 @@ class Thread(BaseModel):
     is_pinned = db.Column(db.Boolean, default=False)
     views = db.Column(db.Integer, default=0)
     
-    board = relationship('Board', backref=db.backref('threads', lazy=True))
     posts = relationship('Post', backref='thread', lazy='dynamic', cascade='all, delete-orphan')
-    files = relationship('File', backref='thread', lazy=True, cascade='all, delete-orphan')
+    thread_files = relationship('File', backref='thread', lazy=True, cascade='all, delete-orphan')
 
     def __init__(self, subject: str) -> None:
         """
@@ -509,14 +508,17 @@ class Post(BaseModel):
     report_count = db.Column(db.Integer, default=0)
     reply_to_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
     
-    files = relationship('File', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+    # Переопределяем отношение к файлам
+    files = relationship('File', backref=db.backref('post', lazy='joined'), lazy='dynamic', cascade='all, delete-orphan')
     replies = relationship(
         'Post',
-        backref=db.backref('parent', remote_side=[id]),
-        lazy='dynamic'
+        backref=db.backref('parent', remote_side='Post.id'),
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+        primaryjoin='Post.id==Post.reply_to_id'
     )
     
-    # Определяем простое отношение к User
+    # Определяем простое отношение
     user = relationship('User')
 
     def __init__(self, content: str, thread_id: int, name: str, 
@@ -575,6 +577,7 @@ class File(BaseModel):
     
     Attributes:
         post_id: ID поста
+        thread_id: ID треда
         filename: Имя файла
         original_filename: Оригинальное имя файла
         file_path: Путь к файлу
@@ -587,11 +590,13 @@ class File(BaseModel):
     """
     __table_args__ = (
         db.Index('idx_files_post_id', 'post_id'),
+        db.Index('idx_files_thread_id', 'thread_id'),
         db.Index('idx_files_created_at', 'created_at'),
         db.Index('idx_files_mime_type', 'mime_type')
     )
     
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
+    thread_id = db.Column(db.Integer, db.ForeignKey('threads.id'))
     filename = db.Column(db.String(255), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
     file_path = db.Column(db.String(255), nullable=False)
@@ -602,7 +607,8 @@ class File(BaseModel):
     error = db.Column(db.Text)
     last_modified = db.Column(db.DateTime, default=datetime.utcnow)
     
-    post = relationship('Post', backref=db.backref('files', lazy=True))
+    # Удаляем дублирующееся определение отношения
+    # post = relationship('Post')
 
     ALLOWED_EXTENSIONS = {
         'image/jpeg': ['.jpg', '.jpeg'],

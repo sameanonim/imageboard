@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копирование кода приложения
 COPY . .
 
+# Создание директории для логов и установка прав
+RUN mkdir -p /app/logs && chown -R celery:celery /app/logs
+
 # Ожидание доступности базы данных
 COPY wait-for-it.sh /wait-for-it.sh
 RUN chmod +x /wait-for-it.sh
@@ -31,4 +34,4 @@ RUN chown -R celery:celery /app /wait-for-it.sh
 USER celery
 
 # Запуск Celery
-CMD ["/wait-for-it.sh", "db:5432", "--", "celery", "-A", "app.celery", "worker", "--loglevel=info"] 
+CMD ["/wait-for-it.sh", "db", "--", "celery", "-A", "app.celery", "worker", "--loglevel=info"] 

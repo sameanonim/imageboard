@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, g, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, g, abort, session
 from flask_login import login_required, current_user
 from models import db, Board, Thread, Post, File, User
 from werkzeug.utils import secure_filename
@@ -31,7 +31,7 @@ def index():
     """Главная страница с популярными тредами."""
     try:
         threads = get_popular_threads()
-        boards = Board.query.filter_by(is_hidden=False).paginate(
+        boards = Board.query.paginate(
             page=request.args.get('page', 1, type=int),
             per_page=current_app.config.get('BOARDS_PER_PAGE', 20)
         )
@@ -441,13 +441,11 @@ def archive():
                          board=board,
                          boards=boards)
 
-@main.route('/set-language/<lang>', methods=['POST'])
+@main.route('/set-language/<lang>')
 def set_language(lang):
-    """Установка языка интерфейса."""
     if lang in ['ru', 'en']:
-        session['lang'] = lang
-        return jsonify({'status': 'success', 'lang': lang})
-    return jsonify({'status': 'error', 'message': 'Invalid language'}), 400
+        session['language'] = lang
+    return redirect(request.referrer or url_for('main.index'))
 
 @main.route('/set-theme', methods=['POST'])
 def set_theme():

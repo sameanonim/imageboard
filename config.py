@@ -2,7 +2,7 @@ import os
 import secrets
 from dotenv import load_dotenv
 from datetime import timedelta
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any, Optional, Type, List
 from pathlib import Path
 from dataclasses import dataclass, field
 from flask_limiter import Limiter
@@ -38,7 +38,7 @@ class BaseConfig:
     })
 
     # Redis
-    REDIS_URL: str = field(default_factory=lambda: os.getenv('REDIS_URL', 'redis://localhost:6380/0'))
+    REDIS_URL: str = field(default_factory=lambda: os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
     REDIS_OPTIONS: Dict[str, Any] = field(default_factory=lambda: {
         'socket_timeout': int(os.getenv('REDIS_TIMEOUT', 5)),
         'socket_connect_timeout': int(os.getenv('REDIS_CONNECT_TIMEOUT', 5)),
@@ -109,11 +109,11 @@ class BaseConfig:
     USER_CACHE_KEY: str = 'user_{id}'
 
     # Логирование
-    LOG_LEVEL: str = field(default_factory=lambda: os.getenv('LOG_LEVEL', 'INFO'))
-    LOG_FORMAT: str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     LOG_FILE: str = field(default_factory=lambda: os.getenv('LOG_FILE', 'logs/imageboard.log'))
-    LOG_MAX_BYTES: int = field(default_factory=lambda: int(os.getenv('LOG_MAX_BYTES', 10 * 1024 * 1024)))
+    LOG_MAX_BYTES: int = field(default_factory=lambda: int(os.getenv('LOG_MAX_BYTES', 10 * 1024 * 1024)))  # 10MB
     LOG_BACKUP_COUNT: int = field(default_factory=lambda: int(os.getenv('LOG_BACKUP_COUNT', 5)))
+    LOG_FORMAT: str = field(default_factory=lambda: os.getenv('LOG_FORMAT', '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+    LOG_LEVEL: str = field(default_factory=lambda: os.getenv('LOG_LEVEL', 'INFO'))
 
     # Резервное копирование
     BACKUP_FOLDER: str = field(default_factory=lambda: os.getenv('BACKUP_FOLDER', 'backups'))
@@ -163,13 +163,19 @@ class BaseConfig:
     WTF_CSRF_TIME_LIMIT: int = 3600
     WTF_CSRF_SSL_STRICT: bool = True
     
+    # CORS
+    CORS_ORIGINS: List[str] = field(default_factory=lambda: os.getenv('CORS_ORIGINS', '*').split(','))
+    CORS_METHODS: List[str] = field(default_factory=lambda: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+    CORS_ALLOW_HEADERS: List[str] = field(default_factory=lambda: ['Content-Type', 'Authorization'])
+    CORS_EXPOSE_HEADERS: List[str] = field(default_factory=lambda: ['Content-Range', 'X-Content-Range'])
+    CORS_SUPPORTS_CREDENTIALS: bool = True
+    
     # XSS защита
     SECURITY_HEADERS: Dict[str, str] = field(default_factory=lambda: {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'SAMEORIGIN',
         'X-XSS-Protection': '1; mode=block',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'",
-        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
     })
 
     # Настройки Redis для rate limiting
